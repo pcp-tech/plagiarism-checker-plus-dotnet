@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -64,12 +65,42 @@ public class ClientTests
     }
 
     [Fact]
-    public async Task ErrorsExposeStatusAndCode()
+    public async Task ErrorsExposeStatusCodeAndDetails()
     {
-        var h = new FakeHandler().Add(403, "{\"error\":{\"code\":\"plan_required\",\"message\":\"Paid plan needed\"}}");
-        var e = await Assert.ThrowsAsync<PlagiarismCheckerPlusException>(() => Client(h).GetAccountAsync());
-        Assert.Equal(403, e.Status);
-        Assert.Equal(ErrorCodes.PlanRequired, e.Code);
+        var h = new FakeHandler().Add(402, "{\"error\":{\"code\":\"key_cap_reached\",\"message\":\"Cap reached\",\"monthlyWordCap\":5000,\"usedThisMonth\":4900}}");
+        var e = await Assert.ThrowsAsync<PlagiarismCheckerPlusException>(() => Client(h).CreateScanAsync("text", new[] { "plagiarism" }));
+        Assert.Equal(402, e.Status);
+        Assert.Equal(ErrorCodes.KeyCapReached, e.Code);
+        Assert.Equal(5000, e.Details!["monthlyWordCap"]!.GetValue<int>());
+        Assert.Equal("trial_exhausted", ErrorCodes.TrialExhausted);
+    }
+
+    private static string Sign(string secret, long t, string body)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        return string.Concat(hmac.ComputeHash(Encoding.UTF8.GetBytes(t + "." + body)).Select(b => b.ToString("x2")));
+    }
+
+    [Fact]
+    public void VerifiesWebhookSignatures()
+    {
+        const string secret = "whsec_test_secret";
+        const string body = "{\"id\":\"evt_1\",\"type\":\"scan.completed\",\"data\":{}}";
+        const long ts = 1_800_000_000L;
+        DateTimeOffset At(long offset) => DateTimeOffset.FromUnixTimeSeconds(ts + offset);
+        var header = $"t={ts},v1={Sign(secret, ts, body)}";
+
+        Assert.Equal("PCP-Signature", Webhook.SignatureHeader);
+        Assert.True(Webhook.VerifySignature(secret, header, body, now: At(10)));
+        Assert.True(Webhook.VerifySignature(secret, header, Encoding.UTF8.GetBytes(body), now: At(0)));
+        Assert.True(Webhook.VerifySignature(secret, $"t={ts},v1={Sign("other", ts, body)},v1={Sign(secret, ts, body)}", body, now: At(0)));
+        Assert.False(Webhook.VerifySignature("whsec_wrong", header, body, now: At(0)));
+        Assert.False(Webhook.VerifySignature(secret, header, body + " ", now: At(0)));
+        Assert.False(Webhook.VerifySignature(secret, header, body, now: At(301)));
+        Assert.False(Webhook.VerifySignature(secret, header, body, now: At(-301)));
+        Assert.True(Webhook.VerifySignature(secret, header, body, TimeSpan.FromSeconds(600), At(500)));
+        Assert.False(Webhook.VerifySignature(secret, $"t={ts}", body, now: At(0)));
+        Assert.False(Webhook.VerifySignature(secret, null, body, now: At(0)));
     }
 
     [Fact]

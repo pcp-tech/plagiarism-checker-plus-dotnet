@@ -15,19 +15,43 @@ namespace PlagiarismCheckerPlus
     /// <summary>Error codes the API returns in <c>error.code</c>.</summary>
     public static class ErrorCodes
     {
+        /// <summary>No longer returned: free accounts get a free API trial and free test keys.</summary>
+        [Obsolete("plan_required is no longer returned: free accounts get a free API trial and free test keys.")]
         public const string PlanRequired = "plan_required";
         public const string TextTooShort = "text_too_short";
         public const string DocTooLong = "doc_too_long";
+        /// <summary>402: not enough words across all sources (wordsNeeded, wordsAvailable, balances, billingUrl).</summary>
         public const string InsufficientWords = "insufficient_words";
+        /// <summary>402: the free API trial cannot cover the request (wordsNeeded, trialRemaining, trialTotal, billingUrl).</summary>
+        public const string TrialExhausted = "trial_exhausted";
+        /// <summary>402: the key's monthly word cap would be exceeded (wordsNeeded, monthlyWordCap, usedThisMonth).</summary>
+        public const string KeyCapReached = "key_cap_reached";
+        public const string InvalidRequest = "invalid_request";
+        public const string InvalidJson = "invalid_json";
+        public const string Unauthorized = "unauthorized";
+        public const string InvalidApiKey = "invalid_api_key";
+        public const string KeyRevoked = "key_revoked";
+        public const string EmailUnverified = "email_unverified";
+        public const string Forbidden = "forbidden";
+        public const string NotFound = "not_found";
+        public const string RateLimited = "rate_limited";
+        public const string WorkersUnavailable = "workers_unavailable";
+        public const string InternalError = "internal_error";
     }
 
-    /// <summary>A non-2xx response. <see cref="Code"/> is the API's error code, such as plan_required.</summary>
+    /// <summary>
+    /// A non-2xx response. <see cref="Code"/> is the API's error code, such as insufficient_words.
+    /// <see cref="Details"/> is the response's error object (wordsNeeded, billingUrl and other detail fields).
+    /// </summary>
     public class PlagiarismCheckerPlusException : Exception
     {
         public int Status { get; }
         public string? Code { get; }
         public TimeSpan? RetryAfter { get; }
         public JsonNode? Body { get; }
+
+        /// <summary>The response's error object: code, message and any detail fields. Null if the body had none.</summary>
+        public JsonObject? Details => Body?["error"] as JsonObject;
 
         public PlagiarismCheckerPlusException(string message, int status, string? code, TimeSpan? retryAfter, JsonNode? body)
             : base(message)
@@ -47,12 +71,13 @@ namespace PlagiarismCheckerPlus
 
     /// <summary>
     /// Client for the Plagiarism Checker Plus public API. Responses are JsonObject
-    /// values that mirror the API's JSON. The API needs a paid plan.
+    /// values that mirror the API's JSON. Get a free API key at
+    /// https://app.plagiarismcheckerplus.com/developers (test keys are free and unlimited).
     /// </summary>
     public sealed class PlagiarismCheckerPlusClient
     {
         public const string DefaultBaseUrl = "https://app.plagiarismcheckerplus.com/api/public/v1";
-        public const string Version = "1.0.0";
+        public const string Version = "1.1.0";
 
         private readonly string _apiKey;
         private readonly string _baseUrl;
@@ -93,6 +118,7 @@ namespace PlagiarismCheckerPlus
             return SendAsync(HttpMethod.Get, "/scans", parts.Count > 0 ? string.Join("&", parts) : null, null, ct);
         }
 
+        /// <summary>Plan, word balances, free API trial ("trial"), "balances", "autoTopup" and this key's "key" mode and cap.</summary>
         public Task<JsonObject> GetAccountAsync(CancellationToken ct = default) =>
             SendAsync(HttpMethod.Get, "/account", null, null, ct);
 
