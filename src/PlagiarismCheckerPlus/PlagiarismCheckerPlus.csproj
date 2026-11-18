@@ -10,9 +10,9 @@
     <Authors>Plagiarism Checker Plus</Authors>
     <Company>Plagiarism Checker Plus</Company>
     <Copyright>Copyright (c) 2026 Plagiarism Checker Plus</Copyright>
-    <Description>Official .NET client for the Plagiarism Checker Plus API: plagiarism checks with sources and AI writing detection.</Description>
-    <PackageTags>plagiarism-checker;ai-detector;ai-content-detection;plagiarism;api</PackageTags>
-    <PackageProjectUrl>https://plagiarismcheckerplus.com</PackageProjectUrl>
+    <Description>Official .NET client for the Plagiarism Checker Plus API: plagiarism checker API with linked sources and AI detector API with a per-sentence AI likelihood.</Description>
+    <PackageTags>plagiarism-checker-api;ai-detector-api;ai-detection;plagiarism-checker;plagiarism-detection;ai-content-detector;plagiarism;sdk</PackageTags>
+    <PackageProjectUrl>https://plagiarismcheckerplus.com/integrations/api</PackageProjectUrl>
     <RepositoryUrl>https://github.com/pcp-tech/plagiarism-checker-plus-dotnet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
